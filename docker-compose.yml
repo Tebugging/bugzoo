@@ -1,0 +1,45 @@
+# Bug Zoo Shop.
+#   docker compose up -d                  practice shop on http://localhost:8080
+#   docker compose --profile clean up -d  also a clean (no bugs) shop on :8081
+#
+# Ports bind to 127.0.0.1 only: on a server, put a reverse proxy (Caddy,
+# nginx, Traefik) in front. Set BUGZOO_PORT / BUGZOO_CLEAN_PORT to change them.
+
+x-shop: &shop
+  build: .
+  image: bugzoo-shop:latest
+  restart: unless-stopped
+  read_only: true
+  tmpfs:
+    - /tmp:size=8m
+  cap_drop: [ALL]
+  security_opt: ["no-new-privileges:true"]
+  deploy:
+    resources:
+      limits:
+        cpus: "0.25"
+        memory: 128M
+        pids: 64
+      reservations:
+        memory: 32M
+  logging:
+    driver: json-file
+    options:
+      max-size: "1m"
+      max-file: "3"
+
+services:
+  shop:
+    <<: *shop
+    environment:
+      BUGZOO_BUGS: ${BUGZOO_BUGS:-all}
+    ports:
+      - "127.0.0.1:${BUGZOO_PORT:-8080}:8080"
+
+  shop-clean:
+    <<: *shop
+    profiles: [clean]
+    environment:
+      BUGZOO_BUGS: none
+    ports:
+      - "127.0.0.1:${BUGZOO_CLEAN_PORT:-8081}:8080"

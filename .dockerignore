@@ -1,0 +1,7 @@
+# Keep the image small and never ship the private answer key.
+eval-key/
+test/
+scripts/
+.git/
+node_modules/
+*.md
