@@ -8,7 +8,7 @@ export async function startApp(bugs) {
   const app = await createApp(loadConfig({ BUGZOO_BUGS: bugs }));
   await new Promise((resolve) => app.server.listen(0, '127.0.0.1', resolve));
   const base = `http://127.0.0.1:${app.server.address().port}`;
-  return { ...app, base, close: () => new Promise((r) => app.server.close(r)) };
+  return { ...app, reset: app.reset, base, close: () => new Promise((r) => app.server.close(r)) };
 }
 
 export function client(base) {
