@@ -43,7 +43,8 @@ ${body}
 <footer class="site">
   <p>Free shipping on orders of ${money(FREE_SHIPPING_FROM_CENTS)} or more.</p>
   <p>Bug Zoo is a <a href="https://tebugging.com">Tebugging</a> product, made for testing purposes.
-  It is not a real shop: payments are fake, never enter a real card.</p>
+  It is not a real shop: payments are fake, never enter a real card.
+  Demo data resets every night at 04:00 UTC.</p>
   <p class="oss">Open source under Apache-2.0 ·
     <a href="https://github.com/Tebugging/bugzoo">Source on GitHub</a>
     <a class="badge" href="https://github.com/Tebugging/bugzoo/stargazers"><img src="https://img.shields.io/github/stars/Tebugging/bugzoo?style=social" alt="GitHub stars" height="20"></a>
