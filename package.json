@@ -1,0 +1,16 @@
+{
+  "name": "bugzoo",
+  "version": "0.1.0",
+  "description": "Bug Zoo: a small web shop with planted functional bugs, for practising and evaluating QA agents.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "private": true,
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "start": "node src/server.js",
+    "start:clean": "BUGZOO_BUGS=none node src/server.js",
+    "test": "node --test \"test/*.test.js\""
+  }
+}
