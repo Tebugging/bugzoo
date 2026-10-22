@@ -24,6 +24,9 @@ header nav { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
 .search { display: flex; gap: 6px; flex: 1 1 240px; max-width: 420px; }
 .search input { flex: 1; }
 footer.site { border-top: 1px solid var(--line); color: var(--muted); font-size: .85rem; padding: 16px; text-align: center; }
+footer p { margin: 6px 0; }
+footer .oss { display: flex; gap: 8px; justify-content: center; align-items: center; flex-wrap: wrap; }
+footer .badge img { display: block; }
 footer .mode { margin: 0; font-size: .75rem; }
 
 input, select, button, .button { font: inherit; padding: 7px 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--card); color: var(--fg); }

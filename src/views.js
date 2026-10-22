@@ -39,8 +39,13 @@ ${flash ? `<div class="flash ${esc(flash.kind)}" role="${flash.kind === 'error' 
 ${body}
 </main>
 <footer class="site">
-  <p>Bug Zoo is a practice shop for QA. Payments are fake: never enter a real card.
-  Free shipping on orders of ${money(5000)} or more.</p>
+  <p>Free shipping on orders of ${money(5000)} or more.</p>
+  <p>Bug Zoo is a <a href="https://tebugging.com">Tebugging</a> product, made for testing purposes.
+  It is not a real shop: payments are fake, never enter a real card.</p>
+  <p class="oss">Open source under Apache-2.0 ·
+    <a href="https://github.com/Tebugging/bugzoo">Source on GitHub</a>
+    <a class="badge" href="https://github.com/Tebugging/bugzoo/stargazers"><img src="https://img.shields.io/github/stars/Tebugging/bugzoo?style=social" alt="GitHub stars" height="20"></a>
+  </p>
   <p class="mode">Mode: ${esc(mode)}</p>
 </footer>
 </body>

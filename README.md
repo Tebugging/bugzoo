@@ -1,12 +1,21 @@
 # 🐞 Bug Zoo
 
+[![GitHub stars](https://img.shields.io/github/stars/Tebugging/bugzoo?style=social)](https://github.com/Tebugging/bugzoo/stargazers)
+[![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
+[![Made by Tebugging](https://img.shields.io/badge/made%20by-Tebugging-2f6f4f.svg)](https://tebugging.com)
+
 Bug Zoo is a public practice playground for software testing. It is a small,
 realistic web shop with **planted functional bugs**. Use it to practise
 exploratory testing, to try out QA tools, or to measure how well an AI testing
 agent finds real bugs.
 
-It is built and used by [Tebugging](https://github.com/Tebugging) to train and
-evaluate its AI QA agents, and it is hosted at **bugzoo.dev**.
+Bug Zoo is a [Tebugging](https://tebugging.com) product, made for testing
+purposes. Tebugging uses it to train and evaluate its AI QA agents, and it is
+hosted at **bugzoo.dev**.
+
+Bug Zoo is **open source** under the Apache-2.0 license. You are free to run
+it, self-host it, change it and use it in your own testing work. If it helps
+you, a ⭐ on GitHub is welcome.
 
 The bugs are not listed here on purpose. Finding them is the game.
 
@@ -134,6 +143,13 @@ and sessions) until the next reset.
 - The answer key is kept private so agents cannot learn it. It is not in this
   repository.
 
+## Contributing
+
+Issues and pull requests are welcome at
+<https://github.com/Tebugging/bugzoo>. Please do not post lists of the
+planted bugs in public issues: it spoils the game for everyone.
+
 ## License
 
-[Apache License 2.0](LICENSE)
+Open source under the [Apache License 2.0](LICENSE).
+Made by [Tebugging](https://tebugging.com).
