@@ -126,15 +126,20 @@ export function createShop(store, bugs) {
   return { listProducts, search, addToCart, updateLine, removeLine, applyCode, totals, validEmail, orderHistory, has };
 }
 
-// Fill in totals for seeded orders that only list their lines.
+// Fill in totals for seeded orders that only list their lines, using the
+// same pricing as live orders (with no planted bugs).
 export function priceSeedOrders(store) {
+  const { totals } = createShop(store, new Set());
   for (const o of store.orders) {
     if (o.totalCents !== undefined) continue;
-    o.subtotalCents = o.lines.reduce((s, l) => s + l.unitCents * l.qty, 0);
-    o.discountCents = 0;
-    o.code = null;
-    o.shippingCents = o.subtotalCents >= FREE_SHIPPING_FROM_CENTS ? 0 : SHIPPING_CENTS;
-    o.totalCents = o.subtotalCents + o.shippingCents;
+    const t = totals({ lines: o.lines.map(({ productId, qty }) => ({ productId, qty })), code: null });
+    Object.assign(o, {
+      subtotalCents: t.subtotalCents,
+      code: null,
+      discountCents: t.discountCents,
+      shippingCents: t.shippingCents,
+      totalCents: t.totalCents,
+    });
     o.shipTo = 'Demo address';
     o.cardLast4 = '4242';
   }

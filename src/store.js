@@ -2,25 +2,31 @@
 // every boot, so a restart is a full reset. Caps keep memory small on a
 // shared server.
 
-import { randomBytes, scryptSync, timingSafeEqual } from 'node:crypto';
+import { randomBytes, scrypt, timingSafeEqual } from 'node:crypto';
+import { promisify } from 'node:util';
 import * as seed from './seed.js';
 
 const LIMITS = { users: 2000, orders: 10000, sessions: 5000 };
 
-export function hashPassword(password, salt = randomBytes(16).toString('hex')) {
-  const hash = scryptSync(password, salt, 32).toString('hex');
+// Async scrypt runs on the libuv thread pool, so logins never block requests.
+const scryptAsync = promisify(scrypt);
+
+export async function hashPassword(password, salt = randomBytes(16).toString('hex')) {
+  const hash = (await scryptAsync(password, salt, 32)).toString('hex');
   return `${salt}:${hash}`;
 }
 
-export function checkPassword(password, stored) {
+export async function checkPassword(password, stored) {
   const [salt, hash] = stored.split(':');
-  const candidate = scryptSync(password, salt, 32);
+  const candidate = await scryptAsync(password, salt, 32);
   return timingSafeEqual(candidate, Buffer.from(hash, 'hex'));
 }
 
-export function createStore() {
+export async function createStore() {
   const products = structuredClone(seed.products);
-  const users = seed.users.map(({ password, ...u }) => ({ ...u, passwordHash: hashPassword(password) }));
+  const users = await Promise.all(
+    seed.users.map(async ({ password, ...u }) => ({ ...u, passwordHash: await hashPassword(password) })),
+  );
   const orders = structuredClone(seed.orders);
   const sessions = new Map();
   let nextUserId = Math.max(...users.map((u) => u.id)) + 1;
@@ -46,9 +52,12 @@ export function createStore() {
       return users.find((u) => u.id === id);
     },
 
-    addUser({ name, email, password }) {
+    async addUser({ name, email, password }) {
+      const passwordHash = await hashPassword(password);
+      // Checked after the await so two parallel sign-ups cannot both pass.
       if (users.length >= LIMITS.users) throw new Error('Sign-ups are full for today. Try again after the nightly reset.');
-      const user = { id: nextUserId++, name, email: email.trim().toLowerCase(), passwordHash: hashPassword(password) };
+      if (this.userByEmail(email)) throw new Error('An account with this email already exists.');
+      const user = { id: nextUserId++, name, email: email.trim().toLowerCase(), passwordHash };
       users.push(user);
       return user;
     },

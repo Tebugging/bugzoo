@@ -8,11 +8,12 @@
 # Exit code 1 if any FAIL.
 
 cd "$(dirname "$0")/.." || exit 1
-# Pick up port overrides from .env, the same file docker compose reads.
-if [ -f .env ]; then set -a; . ./.env; set +a; fi
+# Read port overrides from .env (the file docker compose reads) without
+# running it as shell code. Shell variables win, like in docker compose.
+envval() { [ -f .env ] && sed -n "s/^[[:space:]]*$1[[:space:]]*=[[:space:]]*//p" .env | tail -n 1 | tr -d "\"'\r"; }
 
-PORT="${BUGZOO_PORT:-8080}"
-CLEAN_PORT="${BUGZOO_CLEAN_PORT:-8081}"
+PORT="${BUGZOO_PORT:-$(envval BUGZOO_PORT)}"; PORT="${PORT:-8080}"
+CLEAN_PORT="${BUGZOO_CLEAN_PORT:-$(envval BUGZOO_CLEAN_PORT)}"; CLEAN_PORT="${CLEAN_PORT:-8081}"
 fails=0
 pass() { echo "PASS  $*"; }
 warn() { echo "WARN  $*"; }

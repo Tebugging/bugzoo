@@ -2,7 +2,9 @@
 // Zero dependencies: Node's built-in http server and in-memory data.
 
 import { createServer } from 'node:http';
+import { readFileSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
+import { createHash } from 'node:crypto';
 import { extname, join, normalize } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { loadConfig } from './config.js';
@@ -13,13 +15,21 @@ import * as views from './views.js';
 const PUBLIC_DIR = fileURLToPath(new URL('../public/', import.meta.url));
 const MAX_BODY = 16 * 1024;
 const COOKIE = 'bz_sid';
+// Changes whenever style.css changes, so browsers never keep stale CSS.
+const ASSET_VERSION = createHash('sha256').update(readFileSync(join(PUBLIC_DIR, 'style.css'))).digest('hex').slice(0, 10);
 const TYPES = { '.css': 'text/css; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.svg': 'image/svg+xml', '.ico': 'image/x-icon' };
 
 function parseCookies(header = '') {
   const out = {};
   for (const part of header.split(';')) {
     const i = part.indexOf('=');
-    if (i > 0) out[part.slice(0, i).trim()] = decodeURIComponent(part.slice(i + 1).trim());
+    if (i <= 0) continue;
+    const value = part.slice(i + 1).trim();
+    try {
+      out[part.slice(0, i).trim()] = decodeURIComponent(value);
+    } catch {
+      out[part.slice(0, i).trim()] = value; // malformed escape from some other cookie: keep raw
+    }
   }
   return out;
 }
@@ -37,15 +47,16 @@ async function readForm(req) {
 
 const toInt = (v) => (/^\s*-?\d+\s*$/.test(String(v ?? '')) ? Number.parseInt(v, 10) : NaN);
 
-export function createApp(config = loadConfig()) {
-  const store = createStore();
+export async function createApp(config = loadConfig()) {
+  const store = await createStore();
   priceSeedOrders(store);
   const shop = createShop(store, config.bugs);
 
   async function handle(req, res) {
     const url = new URL(req.url, 'http://localhost');
     const path = url.pathname;
-    const method = req.method;
+    // HEAD is served like GET (Node drops the body), for uptime monitors.
+    const method = req.method === 'HEAD' ? 'GET' : req.method;
     let session = store.session(parseCookies(req.headers.cookie)[COOKIE]);
 
     const ensureSession = () => {
@@ -71,11 +82,12 @@ export function createApp(config = loadConfig()) {
       const f = session?.flash;
       if (session) session.flash = null;
       const cartCount = session ? session.cart.lines.reduce((n, l) => n + l.qty, 0) : 0;
-      send(status, views.layout({ user: user(), cartCount, mode: config.mode, flash: f, query }, { title, body }));
+      send(status, views.layout({ user: user(), cartCount, mode: config.mode, flash: f, query, assetVersion: ASSET_VERSION }, { title, body }));
     };
     const requireLogin = () => {
       if (user()) return true;
-      flash('info', 'Please log in first.');
+      // No flash here: it would create a session for every anonymous crawler hit.
+      // The login page shows "Please log in first." when `next` is set.
       redirect(`/login?next=${encodeURIComponent(path)}`);
       return false;
     };
@@ -205,7 +217,7 @@ export function createApp(config = loadConfig()) {
       if (method === 'POST') {
         const form = await readForm(req);
         const u = store.userByEmail(form.email ?? '');
-        if (!u || !checkPassword(form.password ?? '', u.passwordHash)) {
+        if (!u || !(await checkPassword(form.password ?? '', u.passwordHash))) {
           ensureSession().flash = { kind: 'error', text: 'Wrong email or password.' };
           return page('Log in', views.loginPage(form, form.next), { status: 401 });
         }
@@ -228,7 +240,7 @@ export function createApp(config = loadConfig()) {
         let u;
         if (!error) {
           try {
-            u = store.addUser({ name, email, password: form.password });
+            u = await store.addUser({ name, email, password: form.password });
           } catch (e) {
             error = e.message;
           }
@@ -288,7 +300,7 @@ function checkCheckout(f) {
 // Start the server when run directly (not when imported by tests).
 if (process.argv[1] && fileURLToPath(import.meta.url) === normalize(process.argv[1])) {
   const config = loadConfig();
-  const { server } = createApp(config);
+  const { server } = await createApp(config);
   server.listen(config.port, config.host, () => {
     console.log(`Bug Zoo Shop on http://localhost:${config.port} (mode: ${config.mode}, active bugs: ${config.bugs.size})`);
   });

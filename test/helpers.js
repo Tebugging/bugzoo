@@ -5,7 +5,7 @@ import { createApp } from '../src/server.js';
 import { loadConfig } from '../src/config.js';
 
 export async function startApp(bugs) {
-  const app = createApp(loadConfig({ BUGZOO_BUGS: bugs }));
+  const app = await createApp(loadConfig({ BUGZOO_BUGS: bugs }));
   await new Promise((resolve) => app.server.listen(0, '127.0.0.1', resolve));
   const base = `http://127.0.0.1:${app.server.address().port}`;
   return { ...app, base, close: () => new Promise((r) => app.server.close(r)) };

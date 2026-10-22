@@ -1,5 +1,7 @@
 // HTML templates. Plain template strings, no framework.
 
+import { FREE_SHIPPING_FROM_CENTS } from './shop.js';
+
 const ESC = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
 export const esc = (v) => String(v ?? '').replace(/[&<>"']/g, (c) => ESC[c]);
 export const money = (cents) => `${cents < 0 ? '-' : ''}$${(Math.abs(cents) / 100).toFixed(2)}`;
@@ -7,7 +9,7 @@ export const money = (cents) => `${cents < 0 ? '-' : ''}$${(Math.abs(cents) / 10
 const fmtDate = (iso) => new Date(iso).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric', timeZone: 'UTC' });
 
 export function layout(ctx, { title, body }) {
-  const { user, cartCount, mode, flash } = ctx;
+  const { user, cartCount, mode, flash, assetVersion } = ctx;
   const account = user
     ? `<span class="hello">Hi, ${esc(user.name.split(' ')[0])}</span>
        <form method="post" action="/logout" class="inline"><button class="link" type="submit">Log out</button></form>`
@@ -18,7 +20,7 @@ export function layout(ctx, { title, body }) {
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>${esc(title)} · Bug Zoo Shop</title>
-<link rel="stylesheet" href="/static/style.css">
+<link rel="stylesheet" href="/static/style.css?v=${esc(assetVersion)}">
 </head>
 <body>
 <header class="site">
@@ -39,7 +41,7 @@ ${flash ? `<div class="flash ${esc(flash.kind)}" role="${flash.kind === 'error' 
 ${body}
 </main>
 <footer class="site">
-  <p>Free shipping on orders of ${money(5000)} or more.</p>
+  <p>Free shipping on orders of ${money(FREE_SHIPPING_FROM_CENTS)} or more.</p>
   <p>Bug Zoo is a <a href="https://tebugging.com">Tebugging</a> product, made for testing purposes.
   It is not a real shop: payments are fake, never enter a real card.</p>
   <p class="oss">Open source under Apache-2.0 ·
@@ -224,6 +226,7 @@ export function ordersPage(orders) {
 
 export function loginPage(values = {}, next = '') {
   return `<h1>Log in</h1>
+${next ? '<p class="note">Please log in first.</p>' : ''}
 <form method="post" action="/login" class="stack narrow">
   <input type="hidden" name="next" value="${esc(next)}">
   <label>Email <input type="text" name="email" value="${esc(values.email ?? '')}" required autocomplete="username"></label>

@@ -9,7 +9,11 @@ cd "$(dirname "$0")/.."
 
 # Restart every running Bug Zoo service (shop, and shop-clean if enabled).
 # Scoped to the "bugzoo" compose project: other containers are never touched.
-services=$(docker compose -p bugzoo ps --services --status running | tr "\n" " ")
+if ! running=$(docker compose -p bugzoo ps --services --status running); then
+  echo "$(date -u +%FT%TZ) bugzoo: ERROR could not list containers (is docker running and on PATH?)" >&2
+  exit 1
+fi
+services=$(echo "$running" | tr "\n" " " | sed 's/ *$//')
 if [ -z "$services" ]; then
   echo "$(date -u +%FT%TZ) bugzoo: nothing running, nothing to reset"
   exit 0
