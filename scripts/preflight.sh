@@ -17,9 +17,16 @@ fails=0
 pass() { echo "PASS  $*"; }
 warn() { echo "WARN  $*"; }
 fail() { echo "FAIL  $*"; fails=$((fails + 1)); }
-listening() { ss -Htln 2>/dev/null | awk '{print $4}' | grep -Eq "[:.]$1\$"; }
+listening() {
+  if command -v ss >/dev/null 2>&1; then ss -Htln 2>/dev/null | awk '{print $4}' | grep -Eq "[:.]$1\$"
+  else lsof -nP -iTCP:"$1" -sTCP:LISTEN >/dev/null 2>&1
+  fi
+}
 
 echo "Bug Zoo pre-flight on $(hostname) ($(date -u +%FT%TZ))"
+if [ "$(uname -s)" != Linux ]; then
+  echo "NOTE  This is not Linux. Run this on the server you deploy to; results here only describe this machine."
+fi
 echo
 
 # 1. Docker and Compose v2
@@ -40,8 +47,8 @@ fi
 #    cannot break the other site, but Bug Zoo would not start)
 ours() { docker ps --filter label=com.docker.compose.project=bugzoo --format '{{.Ports}}' 2>/dev/null | grep -q ":$1->"; }
 check_port() { # $1 port, $2 variable name, $3 fail|warn
-  if ! command -v ss >/dev/null 2>&1; then
-    warn "cannot check port $1 ('ss' not found)"
+  if ! command -v ss >/dev/null 2>&1 && ! command -v lsof >/dev/null 2>&1; then
+    warn "cannot check port $1 (neither 'ss' nor 'lsof' found)"
   elif ours "$1"; then
     pass "port $1 is used by Bug Zoo itself (re-deploy)"
   elif listening "$1"; then
@@ -62,6 +69,8 @@ if command -v free >/dev/null 2>&1; then
   fi
   swap=$(free -m | awk '/^Swap:/ {print $2}')
   [ "${swap:-0}" -gt 0 ] && pass "swap: ${swap} MB" || warn "no swap configured (not required)"
+else
+  warn "cannot check free memory ('free' not found; Linux only)"
 fi
 
 # 5. Disk: image is about 60 MB; keep a safe margin
@@ -74,13 +83,17 @@ else fail "free disk on $root is only ${disk} MB"
 fi
 
 # 6. CPU
-cpus=$(nproc 2>/dev/null || echo "?")
+cpus=$(nproc 2>/dev/null || getconf _NPROCESSORS_ONLN 2>/dev/null || echo "?")
 pass "CPU cores: $cpus (Bug Zoo is capped at 0.25 of one core)"
 
 # 7. Reverse proxy: who owns ports 80/443? This decides how to expose Bug Zoo.
 echo
 echo "INFO  what listens on 80/443:"
-ss -Htlnp 2>/dev/null | awk '$4 ~ /[:.](80|443)$/ {print "        " $4 "  " $6}'
+if command -v ss >/dev/null 2>&1; then
+  ss -Htlnp 2>/dev/null | awk '$4 ~ /[:.](80|443)$/ {print "        " $4 "  " $6}'
+else
+  lsof -nP -iTCP:80 -iTCP:443 -sTCP:LISTEN 2>/dev/null | awk 'NR>1 {print "        " $9 "  " $1}'
+fi
 proxy_ctr=$(docker ps --format '{{.Names}} {{.Image}} {{.Ports}}' 2>/dev/null | grep -E ':(80|443)->' || true)
 if [ -n "$proxy_ctr" ]; then
   echo "INFO  the web proxy runs inside Docker:"
