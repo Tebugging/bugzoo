@@ -4,7 +4,8 @@
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { startApp, client, testid, CARD } from './helpers.js';
-import { parseBugs, ALL_BUGS } from '../src/config.js';
+import { parseBugs, ALL_BUGS, parseResetHour } from '../src/config.js';
+import { msUntilHourUtc } from '../src/server.js';
 
 test('config: all, none and lists', () => {
   assert.equal(parseBugs(undefined).size, ALL_BUGS.length);
@@ -25,6 +26,35 @@ test('practice mode boots and serves every page', async () => {
     assert.equal((await c.get('/product/999')).status, 404);
   } finally {
     await app.close();
+  }
+});
+
+test('config: reset hour', () => {
+  assert.equal(parseResetHour(undefined), 4);
+  assert.equal(parseResetHour('0'), 0);
+  assert.equal(parseResetHour('off'), null);
+  assert.throws(() => parseResetHour('24'));
+});
+
+test('next reset time is the coming 04:00 UTC', () => {
+  const hour = 3_600_000;
+  assert.equal(msUntilHourUtc(4, new Date('2026-10-22T03:00:00Z')), hour);
+  assert.equal(msUntilHourUtc(4, new Date('2026-10-22T04:00:00Z')), 24 * hour);
+  assert.equal(msUntilHourUtc(4, new Date('2026-10-22T05:00:00Z')), 23 * hour);
+});
+
+test('reset brings data back to the seed without a restart', async () => {
+  const a = await startApp('none');
+  try {
+    const c = client(a.base);
+    await c.post('/signup', { name: 'Temp', email: 'temp@example.com', password: 'longenough' });
+    assert.equal((await client(a.base).login('temp@example.com', 'longenough')).status, 200);
+    await a.reset();
+    assert.equal((await client(a.base).login('temp@example.com', 'longenough')).status, 401);
+    assert.match((await c.get('/cart')).text, /Log in/, 'sessions are cleared too');
+    assert.equal((await client(a.base).login()).status, 200, 'seed users still work');
+  } finally {
+    await a.close();
   }
 });
 

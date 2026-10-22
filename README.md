@@ -39,7 +39,8 @@ Demo accounts (public on purpose):
 | `alice@bugzoo.dev` | `bugzoo-alice` |
 | `bob@bugzoo.dev` | `bugzoo-bob` |
 
-All data lives in memory and goes back to the seed data on every restart.
+All data lives in memory. It goes back to the seed data every day at 04:00 UTC
+(the app does this itself, with no restart) and on every restart.
 
 ## Run it locally
 
@@ -99,7 +100,7 @@ share a small server with other sites without affecting them:
 |---------------------|-------------------------|
 | Uses too much CPU or RAM | Hard caps: 0.25 CPU, 128 MB RAM, 64 processes. Under load it slows itself down, not the host |
 | Host runs out of memory | Raised OOM score: the kernel kills Bug Zoo first, not your other sites |
-| Fills the disk | No volumes, read-only file system, logs rotated at 3 × 1 MB, data only in RAM |
+| Fills the disk | No volumes, read-only file system, logs rotated at 3 × 1 MB, data only in RAM and reset daily |
 | Port clash | Binds to `127.0.0.1` only. If the port is taken, Docker refuses to start Bug Zoo; the other site keeps running |
 | Commands hit other containers | Fixed compose project name `bugzoo`; `reset.sh` only restarts that project |
 | Network access to other containers | Runs in its own Docker network |
@@ -145,13 +146,11 @@ share a small server with other sites without affecting them:
    normal Dockerfile app on port 8080), or attach the `shop` service to the
    proxy's Docker network.
 
-5. Reset the data every night. A restart is a full reset, and
-   `scripts/reset.sh` restarts only the Bug Zoo containers. Add it to the
-   server's crontab (`crontab -e`), for example at 04:00:
-
-   ```
-   0 4 * * * /opt/bugzoo/scripts/reset.sh >> /var/log/bugzoo-reset.log 2>&1
-   ```
+5. Nightly reset: nothing to set up. The app resets its own data every day at
+   04:00 UTC without restarting, so it also works on Dokploy, Coolify and
+   similar tools. Change the hour with `BUGZOO_RESET_HOUR_UTC`.
+   `scripts/reset.sh` (a container restart) is still there if you want an
+   extra reset from cron.
 
 6. Check it: `curl -s 127.0.0.1:8080/healthz` and open your domain.
 
@@ -163,6 +162,7 @@ remove the proxy site block and the cron line.
 | Variable | Default | Meaning |
 |----------|---------|---------|
 | `BUGZOO_BUGS` | `all` | Which planted bugs are on (see above) |
+| `BUGZOO_RESET_HOUR_UTC` | `4` | Hour (0–23, UTC) of the daily data reset; `off` disables it |
 | `PORT` | `8080` | Port inside the process / container |
 | `HOST` | `0.0.0.0` | Address to listen on |
 | `BUGZOO_PORT` | `8080` | Host port for the compose `shop` service |

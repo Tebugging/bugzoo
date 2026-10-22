@@ -47,10 +47,19 @@ async function readForm(req) {
 
 const toInt = (v) => (/^\s*-?\d+\s*$/.test(String(v ?? '')) ? Number.parseInt(v, 10) : NaN);
 
-export async function createApp(config = loadConfig()) {
+async function freshData(config) {
   const store = await createStore();
   priceSeedOrders(store);
-  const shop = createShop(store, config.bugs);
+  return { store, shop: createShop(store, config.bugs) };
+}
+
+export async function createApp(config = loadConfig()) {
+  let { store, shop } = await freshData(config);
+
+  // Swap in fresh seed data (users, carts, orders, sessions) without a restart.
+  async function reset() {
+    ({ store, shop } = await freshData(config));
+  }
 
   async function handle(req, res) {
     const url = new URL(req.url, 'http://localhost');
@@ -82,7 +91,7 @@ export async function createApp(config = loadConfig()) {
       const f = session?.flash;
       if (session) session.flash = null;
       const cartCount = session ? session.cart.lines.reduce((n, l) => n + l.qty, 0) : 0;
-      send(status, views.layout({ user: user(), cartCount, mode: config.mode, flash: f, query, assetVersion: ASSET_VERSION }, { title, body }));
+      send(status, views.layout({ user: user(), cartCount, mode: config.mode, flash: f, query, assetVersion: ASSET_VERSION, resetHourUtc: config.resetHourUtc }, { title, body }));
     };
     const requireLogin = () => {
       if (user()) return true;
@@ -274,7 +283,13 @@ export async function createApp(config = loadConfig()) {
   });
   server.requestTimeout = 10_000;
   server.headersTimeout = 10_000;
-  return { server, store, shop, config };
+  return {
+    server,
+    config,
+    reset,
+    get store() { return store; },
+    get shop() { return shop; },
+  };
 }
 
 function safeNext(next) {
@@ -297,10 +312,32 @@ function checkCheckout(f) {
   return null;
 }
 
+export function msUntilHourUtc(hour, now = new Date()) {
+  const next = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), hour));
+  if (next <= now) next.setUTCDate(next.getUTCDate() + 1);
+  return next - now;
+}
+
+function scheduleDailyReset(app, hour) {
+  const wait = msUntilHourUtc(hour);
+  setTimeout(async () => {
+    try {
+      await app.reset();
+      console.log(`${new Date().toISOString()} data reset to seed`);
+    } catch (err) {
+      console.error('nightly reset failed', err);
+    }
+    scheduleDailyReset(app, hour);
+  }, wait).unref();
+  console.log(`Next data reset at ${new Date(Date.now() + wait).toISOString()}`);
+}
+
 // Start the server when run directly (not when imported by tests).
 if (process.argv[1] && fileURLToPath(import.meta.url) === normalize(process.argv[1])) {
   const config = loadConfig();
-  const { server } = await createApp(config);
+  const app = await createApp(config);
+  const { server } = app;
+  if (config.resetHourUtc !== null) scheduleDailyReset(app, config.resetHourUtc);
   server.listen(config.port, config.host, () => {
     console.log(`Bug Zoo Shop on http://localhost:${config.port} (mode: ${config.mode}, active bugs: ${config.bugs.size})`);
   });

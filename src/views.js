@@ -9,7 +9,7 @@ export const money = (cents) => `${cents < 0 ? '-' : ''}$${(Math.abs(cents) / 10
 const fmtDate = (iso) => new Date(iso).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric', timeZone: 'UTC' });
 
 export function layout(ctx, { title, body }) {
-  const { user, cartCount, mode, flash, assetVersion } = ctx;
+  const { user, cartCount, mode, flash, assetVersion, resetHourUtc } = ctx;
   const account = user
     ? `<span class="hello">Hi, ${esc(user.name.split(' ')[0])}</span>
        <form method="post" action="/logout" class="inline"><button class="link" type="submit">Log out</button></form>`
@@ -44,7 +44,7 @@ ${body}
   <p>Free shipping on orders of ${money(FREE_SHIPPING_FROM_CENTS)} or more.</p>
   <p>Bug Zoo is a <a href="https://tebugging.com">Tebugging</a> product, made for testing purposes.
   It is not a real shop: payments are fake, never enter a real card.
-  Demo data resets every night at 04:00 UTC.</p>
+  ${resetHourUtc == null ? '' : `Demo data resets every day at ${String(resetHourUtc).padStart(2, '0')}:00 UTC.`}</p>
   <p class="oss">Open source under Apache-2.0 ·
     <a href="https://github.com/Tebugging/bugzoo">Source on GitHub</a>
     <a class="badge" href="https://github.com/Tebugging/bugzoo/stargazers"><img src="https://img.shields.io/github/stars/Tebugging/bugzoo?style=social" alt="GitHub stars" height="20"></a>

@@ -4,6 +4,9 @@
 //   "all"  (default) every planted bug is active ("practice" mode)
 //   "none"           no planted bugs ("clean" mode, for comparison)
 //   "B01,B04"        only the listed bugs are active
+//
+// BUGZOO_RESET_HOUR_UTC: hour (0-23) when all data goes back to the seed
+// every day, without restarting the process. Default 4. "off" disables it.
 
 export const ALL_BUGS = ['B01', 'B02', 'B03', 'B04', 'B05', 'B06', 'B07', 'B08', 'B09', 'B10'];
 
@@ -17,9 +20,18 @@ export function parseBugs(value) {
   return new Set(ids);
 }
 
+export function parseResetHour(value) {
+  const raw = (value ?? '4').trim().toLowerCase();
+  if (raw === 'off' || raw === 'none' || raw === '') return null;
+  const hour = Number(raw);
+  if (!Number.isInteger(hour) || hour < 0 || hour > 23) throw new Error(`BUGZOO_RESET_HOUR_UTC must be 0-23 or "off", got: ${value}`);
+  return hour;
+}
+
 export function loadConfig(env = process.env) {
   const bugs = parseBugs(env.BUGZOO_BUGS);
   return {
+    resetHourUtc: parseResetHour(env.BUGZOO_RESET_HOUR_UTC),
     port: Number(env.PORT ?? 8080),
     host: env.HOST ?? '0.0.0.0',
     bugs,
