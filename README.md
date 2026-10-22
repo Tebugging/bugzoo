@@ -92,20 +92,41 @@ clean mode (browse, search, cart, checkout, order history, sign up).
 
 ## Self-hosting
 
-Bug Zoo is one small container (about 25 MB of RAM when idle). The compose file
-sets limits so it can share a small server with other sites: 0.25 CPU,
-128 MB RAM, 64 processes, read-only file system, no Linux capabilities, and
-rotated logs.
+Bug Zoo is one small container (about 25 MB of RAM when idle). It is built to
+share a small server with other sites without affecting them:
+
+| Risk to other sites | How Bug Zoo prevents it |
+|---------------------|-------------------------|
+| Uses too much CPU or RAM | Hard caps: 0.25 CPU, 128 MB RAM, 64 processes. Under load it slows itself down, not the host |
+| Host runs out of memory | Raised OOM score: the kernel kills Bug Zoo first, not your other sites |
+| Fills the disk | No volumes, read-only file system, logs rotated at 3 × 1 MB, data only in RAM |
+| Port clash | Binds to `127.0.0.1` only. If the port is taken, Docker refuses to start Bug Zoo; the other site keeps running |
+| Commands hit other containers | Fixed compose project name `bugzoo`; `reset.sh` only restarts that project |
+| Network access to other containers | Runs in its own Docker network |
+
+### Steps
 
 1. Copy the repo to the server, for example to `/opt/bugzoo`.
-2. Start it:
+2. Run the read-only pre-flight check. It changes nothing; it checks ports,
+   memory, disk and which web proxy you run:
 
    ```bash
-   cd /opt/bugzoo && docker compose up -d --build
+   cd /opt/bugzoo && sh scripts/preflight.sh
    ```
 
-   The shop listens on `127.0.0.1:8080` only. Set `BUGZOO_PORT` to change it.
-3. Put a reverse proxy with HTTPS in front. A Caddy example:
+   If port 8080 is taken, put `BUGZOO_PORT=18080` (any free port) in a `.env`
+   file next to `docker-compose.yml`.
+3. Start it:
+
+   ```bash
+   docker compose up -d --build
+   ```
+
+4. Add a site to your reverse proxy. Add a **new** site block; do not edit the
+   other sites. Check the config before you reload so a typo cannot take the
+   other sites down.
+
+   Caddy:
 
    ```
    bugzoo.example.com {
@@ -113,13 +134,29 @@ rotated logs.
    }
    ```
 
-4. Reset the data every night. A restart is a full reset, and
-   `scripts/reset.sh` restarts every running Bug Zoo container. Add it to the
+   Then `caddy validate --config /etc/caddy/Caddyfile && systemctl reload caddy`.
+
+   nginx: add a new file in `sites-available`/`conf.d` with
+   `proxy_pass http://127.0.0.1:8080;`, then `nginx -t && systemctl reload nginx`.
+
+   If your proxy runs **inside Docker** (Traefik, Dokploy, Coolify, Nginx Proxy
+   Manager), it cannot reach `127.0.0.1` on the host. The pre-flight check
+   tells you. In that case, deploy Bug Zoo as an app in that tool (it is a
+   normal Dockerfile app on port 8080), or attach the `shop` service to the
+   proxy's Docker network.
+
+5. Reset the data every night. A restart is a full reset, and
+   `scripts/reset.sh` restarts only the Bug Zoo containers. Add it to the
    server's crontab (`crontab -e`), for example at 04:00:
 
    ```
    0 4 * * * /opt/bugzoo/scripts/reset.sh >> /var/log/bugzoo-reset.log 2>&1
    ```
+
+6. Check it: `curl -s 127.0.0.1:8080/healthz` and open your domain.
+
+To remove Bug Zoo completely: `docker compose -p bugzoo down --rmi local`,
+remove the proxy site block and the cron line.
 
 ### Configuration
 

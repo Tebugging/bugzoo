@@ -8,11 +8,12 @@ set -eu
 cd "$(dirname "$0")/.."
 
 # Restart every running Bug Zoo service (shop, and shop-clean if enabled).
-services=$(docker compose ps --services --status running | tr "\n" " ")
+# Scoped to the "bugzoo" compose project: other containers are never touched.
+services=$(docker compose -p bugzoo ps --services --status running | tr "\n" " ")
 if [ -z "$services" ]; then
   echo "$(date -u +%FT%TZ) bugzoo: nothing running, nothing to reset"
   exit 0
 fi
 # shellcheck disable=SC2086
-docker compose restart $services
+docker compose -p bugzoo restart $services
 echo "$(date -u +%FT%TZ) bugzoo: reset $services"

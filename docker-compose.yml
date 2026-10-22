@@ -4,11 +4,20 @@
 #
 # Ports bind to 127.0.0.1 only: on a server, put a reverse proxy (Caddy,
 # nginx, Traefik) in front. Set BUGZOO_PORT / BUGZOO_CLEAN_PORT to change them.
+#
+# Shared-server safety: fixed project name (commands never touch other
+# projects), own network, hard CPU/RAM/process caps, rotated logs, no volumes,
+# and a raised OOM score so the kernel kills Bug Zoo before other sites if the
+# host ever runs out of memory. Run scripts/preflight.sh on the server first.
+
+name: bugzoo
 
 x-shop: &shop
   build: .
   image: bugzoo-shop:latest
   restart: unless-stopped
+  stop_grace_period: 5s
+  oom_score_adj: 500
   read_only: true
   tmpfs:
     - /tmp:size=8m
