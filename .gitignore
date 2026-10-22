@@ -1,0 +1,7 @@
+node_modules/
+.DS_Store
+*.log
+.env
+
+# Private eval answer key. Never commit: agents under test must not read it.
+eval-key/
